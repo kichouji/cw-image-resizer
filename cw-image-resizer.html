@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カードワース用画像ファイル縮小ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            text-align: center;
+            padding: 20px;
+        }
+        #canvas-container {
+            display: inline-block;
+            position: relative;
+        }
+        #canvas {
+            border: 1px solid black;
+            position: relative;
+            background-color: white;
+        }
+        #resize-rect {
+            border: 2px dashed red;
+            position: absolute;
+            cursor: move;
+        }
+        #controls {
+            margin-top: 20px;
+        }
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>カードワース用画像ファイル縮小ツール</h1>
+    <input type="file" id="file-input">
+    <div id="canvas-container">
+        <canvas id="canvas"></canvas>
+    </div>
+    <div id="controls">
+        <button id="download-bmp-btn">BMPとして保存</button>
+        <button id="download-png-btn">PNGとして保存</button>
+    </div>
+    <script src="https://unpkg.com/pica/dist/pica.min.js"></script>
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let img = new Image();
+
+        // ファイルが選択されたら、画像を読み込む
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 画像が読み込まれたらCanvasに描画する
+        img.onload = function() {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            initializeSelectionBox();
+        };
+
+        // 選択ボックスの初期化
+        let selectionBox = {
+            x: 10, y: 10, width: 74, height: 94
+        };
+        let resizing = false;
+
+        function initializeSelectionBox() {
+            drawSelectionBox();
+            canvas.addEventListener('mousedown', startDragging);
+            canvas.addEventListener('mouseup', stopDragging);
+            canvas.addEventListener('mousemove', dragOrResize);
+            document.getElementById('download-bmp-btn').addEventListener('click', () => downloadCroppedImage('bmp'));
+            document.getElementById('download-png-btn').addEventListener('click', () => downloadCroppedImage('png'));
+        }
+
+        function drawSelectionBox() {
+            ctx.drawImage(img, 0, 0);
+            ctx.strokeStyle = 'red';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
+        }
+
+        let dragging = false;
+        let offsetX, offsetY;
+        let resizingEdge = null;
+
+        function startDragging(e) {
+            const mouseX = e.offsetX;
+            const mouseY = e.offsetY;
+
+            // 判定: ボックスの角をドラッグしてサイズ変更するかどうか
+            const edgeSize = 10;
+            if (mouseX >= selectionBox.x + selectionBox.width - edgeSize &&
+                mouseX <= selectionBox.x + selectionBox.width &&
+                mouseY >= selectionBox.y + selectionBox.height - edgeSize &&
+                mouseY <= selectionBox.y + selectionBox.height) {
+                resizing = true;
+                resizingEdge = 'bottom-right';
+            } else if (
+                mouseX >= selectionBox.x && mouseX <= selectionBox.x + selectionBox.width &&
+                mouseY >= selectionBox.y && mouseY <= selectionBox.y + selectionBox.height
+            ) {
+                dragging = true;
+                offsetX = mouseX - selectionBox.x;
+                offsetY = mouseY - selectionBox.y;
+            }
+        }
+
+        function dragOrResize(e) {
+            const mouseX = e.offsetX;
+            const mouseY = e.offsetY;
+
+            if (dragging) {
+                selectionBox.x = mouseX - offsetX;
+                selectionBox.y = mouseY - offsetY;
+                drawSelectionBox();
+            } else if (resizing && resizingEdge === 'bottom-right') {
+                const newWidth = mouseX - selectionBox.x;
+                const newHeight = (newWidth * 94) / 74; // アスペクト比を保つ
+                if (newWidth >= 74 && newHeight >= 94) { // 最小サイズ制限
+                    selectionBox.width = newWidth;
+                    selectionBox.height = newHeight;
+                    drawSelectionBox();
+                }
+            }
+        }
+
+        function stopDragging() {
+            dragging = false;
+            resizing = false;
+        }
+
+        // ダウンロードボタンで選択範囲を縮小し、保存する
+        function downloadCroppedImage(format) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = selectionBox.width;
+            tempCanvas.height = selectionBox.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height, 0, 0, selectionBox.width, selectionBox.height);
+
+            const pica = window.pica();
+            const outputCanvas = document.createElement('canvas');
+            outputCanvas.width = 74;
+            outputCanvas.height = 94;
+
+            pica.resize(tempCanvas, outputCanvas)
+                .then(() => {
+                    const link = document.createElement('a');
+                    link.download = `resized-image.${format}`;
+                    outputCanvas.toBlob((blob) => {
+                        link.href = URL.createObjectURL(blob);
+                        link.click();
+                    }, `image/${format}`);
+                });
+        }
+    </script>
+</body>
+</html>
