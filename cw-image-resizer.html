@@ -37,6 +37,9 @@
         input[type="file"] {
             margin-bottom: 20px;
         }
+        #canvas-container.dragover {
+            border: 3px dashed #007bff;
+        }
     </style>
 </head>
 <body>
@@ -53,6 +56,7 @@
     <script>
         const fileInput = document.getElementById('file-input');
         const canvas = document.getElementById('canvas');
+        const canvasContainer = document.getElementById('canvas-container');
         const ctx = canvas.getContext('2d');
         let img = new Image();
 
@@ -60,13 +64,56 @@
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                loadImageFromFile(file);
             }
         });
+
+        // ドラッグ＆ドロップでの画像読み込みに対応
+        canvasContainer.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            canvasContainer.classList.add('dragover');
+        });
+
+        canvasContainer.addEventListener('dragleave', () => {
+            canvasContainer.classList.remove('dragover');
+        });
+
+        canvasContainer.addEventListener('drop', (event) => {
+            event.preventDefault();
+            canvasContainer.classList.remove('dragover');
+            const file = event.dataTransfer.files[0];
+            if (file) {
+                loadImageFromFile(file);
+            }
+        });
+
+        // クリップボードからの貼り付けに対応
+        document.addEventListener('paste', (event) => {
+            const items = event.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const blob = items[i].getAsFile();
+                    loadImageFromBlob(blob);
+                }
+            }
+        });
+
+        // 画像を読み込む共通関数
+        function loadImageFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadImageFromBlob(blob) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+        }
 
         // 画像が読み込まれたらCanvasに描画する
         img.onload = function() {
