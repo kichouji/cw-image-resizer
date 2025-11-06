@@ -253,22 +253,50 @@
         const statusBar = document.getElementById('status-bar');
         const statusDimensions = document.getElementById('status-dimensions');
         const statusOutput = document.getElementById('status-output');
+
         const EDGE_HANDLE_SIZE = 14;
+        const DEFAULT_OUTPUT_WIDTH = 74;
+        const DEFAULT_OUTPUT_HEIGHT = 94;
+        const INITIAL_SELECTION_SCALE = 0.6;
+        const MIN_SELECTION_SIZE = 40;
+        const MIN_RESIZE_SIZE = 20;
 
         const ctx = canvas.getContext('2d');
         const img = new Image();
-        let selectionBox = { x: 10, y: 10, width: 74, height: 94 };
+        const targetDimensions = {
+            width: DEFAULT_OUTPUT_WIDTH,
+            height: DEFAULT_OUTPUT_HEIGHT
+        };
+        let selectionBox = { x: 10, y: 10, width: DEFAULT_OUTPUT_WIDTH, height: DEFAULT_OUTPUT_HEIGHT };
         let dragging = false;
         let resizing = false;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
         let interactionsBound = false;
 
-        function sanitizeDimension(input, fallback) {
+        function normalizeDimensionInput(input, fallback) {
             const value = parseInt(input.value, 10);
             const safeValue = Number.isFinite(value) && value > 0 ? value : fallback;
-            input.value = safeValue;
+            if (input.value !== String(safeValue)) {
+                input.value = safeValue;
+            }
             return safeValue;
+        }
+
+        function ensureTargetDimensions() {
+            const width = normalizeDimensionInput(outputWidthInput, DEFAULT_OUTPUT_WIDTH);
+            const height = normalizeDimensionInput(outputHeightInput, DEFAULT_OUTPUT_HEIGHT);
+            const changed = width !== targetDimensions.width || height !== targetDimensions.height;
+            targetDimensions.width = width;
+            targetDimensions.height = height;
+            if (changed) {
+                updateOutputStatus();
+            }
+            return targetDimensions;
+        }
+
+        function updateOutputStatus() {
+            statusOutput.textContent = `出力サイズ: ${targetDimensions.width} × ${targetDimensions.height}`;
         }
 
         function getPointerPosition(event) {
@@ -280,25 +308,24 @@
             return { x, y };
         }
 
-        function getTargetDimensions() {
-            const width = sanitizeDimension(outputWidthInput, 74);
-            const height = sanitizeDimension(outputHeightInput, 94);
-            statusOutput.textContent = `出力サイズ: ${width} × ${height}`;
-            return { width, height };
-        }
-
         function getAspectRatio() {
-            const { width, height } = getTargetDimensions();
+            const { width, height } = ensureTargetDimensions();
             const ratio = height / width;
             return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
         }
 
+        function setDragState(isActive) {
+            const method = isActive ? 'add' : 'remove';
+            canvasCard.classList[method]('dragover');
+            canvasContainer.classList[method]('dragover');
+        }
+
         function enableInteractiveElements() {
             canvasContainer.classList.remove('hidden');
-            canvasContainer.classList.remove('dragover');
             statusBar.classList.remove('hidden');
             placeholder.classList.add('hidden');
-            canvasCard.classList.remove('dragover');
+            setDragState(false);
+            updateOutputStatus();
             downloadBmpBtn.disabled = false;
             downloadPngBtn.disabled = false;
             resetSelectionBtn.disabled = false;
@@ -323,8 +350,8 @@
         }
 
         function handleDimensionChange() {
+            ensureTargetDimensions();
             if (!img.width) {
-                getTargetDimensions();
                 return;
             }
             resizeSelectionBoxToAspect();
@@ -339,16 +366,16 @@
         function resizeSelectionBoxToAspect() {
             const aspectRatio = getAspectRatio();
 
-            let width = Math.min(canvas.width * 0.6, canvas.width);
+            let width = Math.min(canvas.width * INITIAL_SELECTION_SCALE, canvas.width);
             let height = width * aspectRatio;
 
-            if (height > canvas.height * 0.6) {
-                height = Math.min(canvas.height * 0.6, canvas.height);
+            if (height > canvas.height * INITIAL_SELECTION_SCALE) {
+                height = Math.min(canvas.height * INITIAL_SELECTION_SCALE, canvas.height);
                 width = height / aspectRatio;
             }
 
-            width = Math.max(width, 40);
-            height = Math.max(height, 40);
+            width = Math.max(width, MIN_SELECTION_SIZE);
+            height = Math.max(height, MIN_SELECTION_SIZE);
 
             if (width > canvas.width) {
                 width = canvas.width;
@@ -439,7 +466,7 @@
                 selectionBox.y = nextY;
             } else if (resizing) {
                 canvas.style.cursor = 'nwse-resize';
-                let newWidth = Math.max(mouseX - selectionBox.x, 20);
+                let newWidth = Math.max(mouseX - selectionBox.x, MIN_RESIZE_SIZE);
                 let newHeight = newWidth * aspectRatio;
 
                 if (selectionBox.x + newWidth > canvas.width) {
@@ -451,7 +478,7 @@
                     newWidth = newHeight / aspectRatio;
                 }
 
-                if (newWidth >= 20 && newHeight >= 20) {
+                if (newWidth >= MIN_RESIZE_SIZE && newHeight >= MIN_RESIZE_SIZE) {
                     selectionBox.width = newWidth;
                     selectionBox.height = newHeight;
                 }
@@ -469,7 +496,7 @@
         function downloadCroppedImage(format) {
             if (!img.width) return;
 
-            const { width: outputWidth, height: outputHeight } = getTargetDimensions();
+            const { width: outputWidth, height: outputHeight } = ensureTargetDimensions();
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = Math.round(selectionBox.width);
             tempCanvas.height = Math.round(selectionBox.height);
@@ -510,15 +537,14 @@
         fileInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
             if (file) {
-                loadImageFromFile(file);
+                loadImageFromSource(file);
             }
         });
 
         // ドラッグ＆ドロップ
         function handleDragOver(event) {
             event.preventDefault();
-            canvasCard.classList.add('dragover');
-            canvasContainer.classList.add('dragover');
+            setDragState(true);
         }
 
         function handleDragLeave(event) {
@@ -527,17 +553,15 @@
             if (related && canvasCard.contains(related)) {
                 return;
             }
-            canvasCard.classList.remove('dragover');
-            canvasContainer.classList.remove('dragover');
+            setDragState(false);
         }
 
         function handleDrop(event) {
             event.preventDefault();
-            canvasCard.classList.remove('dragover');
-            canvasContainer.classList.remove('dragover');
+            setDragState(false);
             const file = event.dataTransfer?.files?.[0];
             if (file) {
-                loadImageFromFile(file);
+                loadImageFromSource(file);
             }
         }
 
@@ -554,26 +578,20 @@
                 if (items[i].type.includes('image')) {
                     const blob = items[i].getAsFile();
                     if (blob) {
-                        loadImageFromBlob(blob);
+                        loadImageFromSource(blob);
                     }
                 }
             }
         });
 
-        function loadImageFromFile(file) {
+        function loadImageFromSource(source) {
             const reader = new FileReader();
             reader.onload = (e) => {
-                img.src = e.target.result;
+                if (e.target?.result) {
+                    img.src = e.target.result;
+                }
             };
-            reader.readAsDataURL(file);
-        }
-
-        function loadImageFromBlob(blob) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(blob);
+            reader.readAsDataURL(source);
         }
 
         img.onload = () => {
@@ -581,10 +599,13 @@
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
             initializeInteractions();
+            ensureTargetDimensions();
             resizeSelectionBoxToAspect();
             drawSelectionBox();
             enableInteractiveElements();
         };
+
+        updateOutputStatus();
     </script>
 </body>
 </html>
