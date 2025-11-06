@@ -5,208 +5,492 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カードワース用画像ファイル縮小ツール</title>
     <style>
+        :root {
+            color-scheme: light;
+            font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(160deg, #f5f9ff, #f2f4f8);
+            color: #121826;
+        }
+        * {
+            box-sizing: border-box;
+        }
         body {
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            text-align: center;
-            padding: 20px;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
         }
-        #canvas-container {
-            display: inline-block;
-            position: relative;
+        .app {
+            width: min(1080px, 100%);
+            background: #ffffff;
+            border-radius: 18px;
+            box-shadow: 0 18px 35px rgba(15, 34, 58, 0.12);
+            padding: 36px;
+            display: grid;
+            gap: 28px;
         }
-        #canvas {
-            border: 1px solid black;
-            position: relative;
-            background-color: white;
+        .app__header h1 {
+            margin: 0;
+            font-size: clamp(1.8rem, 2.2vw + 1rem, 2.6rem);
+            letter-spacing: -0.02em;
         }
-        #resize-rect {
-            border: 2px dashed red;
-            position: absolute;
-            cursor: move;
+        .app__header p {
+            margin: 8px 0 0;
+            color: #536079;
+            font-size: 1rem;
         }
-        #controls {
-            margin-top: 20px;
+        .app__layout {
+            display: grid;
+            gap: 28px;
+            grid-template-columns: 320px 1fr;
         }
-        button {
-            margin: 5px;
-            padding: 10px 20px;
-            font-size: 16px;
+        @media (max-width: 960px) {
+            .app__layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        .panel {
+            background: #f7f9fd;
+            border-radius: 16px;
+            padding: 24px;
+            display: grid;
+            gap: 18px;
+            border: 1px solid #e2e8f0;
+        }
+        .panel h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: #1f2a44;
+        }
+        .panel label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #29344e;
+        }
+        .panel input[type="file"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px dashed #b6c2da;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #394661;
             cursor: pointer;
         }
-        input[type="file"] {
-            margin-bottom: 20px;
+        .panel input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid #cbd5f1;
+            font-size: 0.95rem;
+        }
+        .hint {
+            font-size: 0.85rem;
+            color: #5f6c86;
+            line-height: 1.4;
+        }
+        .dimension-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .button-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        button {
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            font-size: 0.95rem;
+        }
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+            box-shadow: none;
+        }
+        .btn-primary {
+            background: #3258ff;
+            color: white;
+            box-shadow: 0 10px 18px rgba(50, 88, 255, 0.3);
+        }
+        .btn-secondary {
+            background: #eef2ff;
+            color: #2740b8;
+            box-shadow: 0 10px 16px rgba(39, 64, 184, 0.12);
+        }
+        button:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        .canvas-card {
+            background: #0b1529;
+            border-radius: 16px;
+            padding: 20px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 420px;
+        }
+        .canvas-card.dragover {
+            background: #10203d;
+            box-shadow: 0 0 0 2px rgba(80, 180, 255, 0.4) inset, 0 18px 35px rgba(15, 34, 58, 0.22);
+        }
+        #canvas-container {
+            position: relative;
+            border-radius: 12px;
+            border: 2px dashed rgba(255, 255, 255, 0.35);
+            background: radial-gradient(circle at top, rgba(255, 255, 255, 0.16), transparent 55%);
+            padding: 12px;
+            transition: border-color 0.2s ease, background 0.2s ease;
         }
         #canvas-container.dragover {
-            border: 3px dashed #007bff;
+            border-color: rgba(80, 180, 255, 0.9);
+            background: rgba(43, 121, 255, 0.25);
+        }
+        #canvas {
+            max-width: min(640px, 80vw);
+            max-height: 70vh;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: #101d38;
+        }
+        .status-bar {
+            position: absolute;
+            left: 24px;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.82);
+        }
+        .status-pill {
+            background: rgba(12, 23, 44, 0.65);
+            border-radius: 999px;
+            padding: 6px 14px;
+        }
+        .hidden {
+            display: none !important;
+        }
+        .canvas-placeholder {
+            color: rgba(255, 255, 255, 0.72);
+            text-align: center;
+            line-height: 1.5;
+            max-width: 420px;
+            margin: 0 auto;
+            font-size: 1rem;
+            pointer-events: none;
         }
     </style>
 </head>
 <body>
-    <h1>カードワース用画像ファイル縮小ツール</h1>
-    <input type="file" id="file-input">
-    <div id="canvas-container">
-        <canvas id="canvas"></canvas>
-    </div>
-    <div id="controls">
-        <button id="download-bmp-btn">BMPとして保存</button>
-        <button id="download-png-btn">PNGとして保存</button>
-    </div>
+    <main class="app">
+        <header class="app__header">
+            <h1>カードワース用画像ファイル縮小ツール</h1>
+            <p>画像を読み込み、範囲を調整し、希望サイズでBMP/PNGとしてダウンロードできます。</p>
+        </header>
+        <section class="app__layout">
+            <aside class="panel">
+                <div>
+                    <label for="file-input">画像ファイルを選択</label>
+                    <input type="file" id="file-input" accept="image/*">
+                    <p class="hint">ドラッグ＆ドロップまたはクリップボードからの貼り付けにも対応しています。</p>
+                </div>
+                <div>
+                    <h2>出力サイズ</h2>
+                    <div class="dimension-grid">
+                        <div>
+                            <label for="output-width">幅 (px)</label>
+                            <input type="number" id="output-width" min="1" value="74">
+                        </div>
+                        <div>
+                            <label for="output-height">高さ (px)</label>
+                            <input type="number" id="output-height" min="1" value="94">
+                        </div>
+                    </div>
+                    <p class="hint">数値を変更すると選択範囲の比率が自動で更新されます。</p>
+                </div>
+                <div class="button-row">
+                    <button class="btn-secondary" id="reset-selection-btn" disabled>選択範囲を中央にリセット</button>
+                </div>
+                <div class="button-row">
+                    <button class="btn-primary" id="download-bmp-btn" disabled>BMPとして保存</button>
+                    <button class="btn-primary" id="download-png-btn" disabled>PNGとして保存</button>
+                </div>
+            </aside>
+            <section class="canvas-card">
+                <p id="canvas-placeholder" class="canvas-placeholder">ここに画像をドロップするか、左側から画像ファイルを選択してください。</p>
+                <div id="canvas-container" class="hidden">
+                    <canvas id="canvas"></canvas>
+                </div>
+                <div class="status-bar hidden" id="status-bar">
+                    <span class="status-pill" id="status-dimensions">選択範囲: -</span>
+                    <span class="status-pill" id="status-output">出力サイズ: 74 × 94</span>
+                </div>
+            </section>
+        </section>
+    </main>
     <script src="https://unpkg.com/pica/dist/pica.min.js"></script>
     <script>
         const fileInput = document.getElementById('file-input');
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvas-container');
+        const canvasCard = document.querySelector('.canvas-card');
+        const placeholder = document.getElementById('canvas-placeholder');
+        const outputWidthInput = document.getElementById('output-width');
+        const outputHeightInput = document.getElementById('output-height');
+        const resetSelectionBtn = document.getElementById('reset-selection-btn');
+        const downloadBmpBtn = document.getElementById('download-bmp-btn');
+        const downloadPngBtn = document.getElementById('download-png-btn');
+        const statusBar = document.getElementById('status-bar');
+        const statusDimensions = document.getElementById('status-dimensions');
+        const statusOutput = document.getElementById('status-output');
+        const EDGE_HANDLE_SIZE = 14;
+
         const ctx = canvas.getContext('2d');
-        let img = new Image();
-
-        // ファイルが選択されたら、画像を読み込む
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                loadImageFromFile(file);
-            }
-        });
-
-        // ドラッグ＆ドロップでの画像読み込みに対応
-        canvasContainer.addEventListener('dragover', (event) => {
-            event.preventDefault();
-            canvasContainer.classList.add('dragover');
-        });
-
-        canvasContainer.addEventListener('dragleave', () => {
-            canvasContainer.classList.remove('dragover');
-        });
-
-        canvasContainer.addEventListener('drop', (event) => {
-            event.preventDefault();
-            canvasContainer.classList.remove('dragover');
-            const file = event.dataTransfer.files[0];
-            if (file) {
-                loadImageFromFile(file);
-            }
-        });
-
-        // クリップボードからの貼り付けに対応
-        document.addEventListener('paste', (event) => {
-            const items = event.clipboardData.items;
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf('image') !== -1) {
-                    const blob = items[i].getAsFile();
-                    loadImageFromBlob(blob);
-                }
-            }
-        });
-
-        // 画像を読み込む共通関数
-        function loadImageFromFile(file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function loadImageFromBlob(blob) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(blob);
-        }
-
-        // 画像が読み込まれたらCanvasに描画する
-        img.onload = function() {
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            initializeSelectionBox();
-        };
-
-        // 選択ボックスの初期化
-        let selectionBox = {
-            x: 10, y: 10, width: 74, height: 94
-        };
+        const img = new Image();
+        let selectionBox = { x: 10, y: 10, width: 74, height: 94 };
+        let dragging = false;
         let resizing = false;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+        let interactionsBound = false;
 
-        function initializeSelectionBox() {
-            drawSelectionBox();
-            canvas.addEventListener('mousedown', startDragging);
-            canvas.addEventListener('mouseup', stopDragging);
+        function sanitizeDimension(input, fallback) {
+            const value = parseInt(input.value, 10);
+            const safeValue = Number.isFinite(value) && value > 0 ? value : fallback;
+            input.value = safeValue;
+            return safeValue;
+        }
+
+        function getPointerPosition(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = rect.width ? canvas.width / rect.width : 1;
+            const scaleY = rect.height ? canvas.height / rect.height : 1;
+            const x = (event.clientX - rect.left) * scaleX;
+            const y = (event.clientY - rect.top) * scaleY;
+            return { x, y };
+        }
+
+        function getTargetDimensions() {
+            const width = sanitizeDimension(outputWidthInput, 74);
+            const height = sanitizeDimension(outputHeightInput, 94);
+            statusOutput.textContent = `出力サイズ: ${width} × ${height}`;
+            return { width, height };
+        }
+
+        function getAspectRatio() {
+            const { width, height } = getTargetDimensions();
+            const ratio = height / width;
+            return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+        }
+
+        function enableInteractiveElements() {
+            canvasContainer.classList.remove('hidden');
+            canvasContainer.classList.remove('dragover');
+            statusBar.classList.remove('hidden');
+            placeholder.classList.add('hidden');
+            canvasCard.classList.remove('dragover');
+            downloadBmpBtn.disabled = false;
+            downloadPngBtn.disabled = false;
+            resetSelectionBtn.disabled = false;
+        }
+
+        function initializeInteractions() {
+            if (interactionsBound) return;
+
+            canvas.addEventListener('mousedown', startInteraction);
+            canvas.addEventListener('mouseup', stopInteraction);
+            canvas.addEventListener('mouseleave', stopInteraction);
             canvas.addEventListener('mousemove', dragOrResize);
-            document.getElementById('download-bmp-btn').addEventListener('click', () => downloadCroppedImage('bmp'));
-            document.getElementById('download-png-btn').addEventListener('click', () => downloadCroppedImage('png'));
+
+            downloadBmpBtn.addEventListener('click', () => downloadCroppedImage('bmp'));
+            downloadPngBtn.addEventListener('click', () => downloadCroppedImage('png'));
+            resetSelectionBtn.addEventListener('click', resetSelectionBox);
+
+            outputWidthInput.addEventListener('change', handleDimensionChange);
+            outputHeightInput.addEventListener('change', handleDimensionChange);
+
+            interactionsBound = true;
+        }
+
+        function handleDimensionChange() {
+            if (!img.width) {
+                getTargetDimensions();
+                return;
+            }
+            resizeSelectionBoxToAspect();
+            drawSelectionBox();
+        }
+
+        function resetSelectionBox() {
+            resizeSelectionBoxToAspect();
+            drawSelectionBox();
+        }
+
+        function resizeSelectionBoxToAspect() {
+            const aspectRatio = getAspectRatio();
+
+            let width = Math.min(canvas.width * 0.6, canvas.width);
+            let height = width * aspectRatio;
+
+            if (height > canvas.height * 0.6) {
+                height = Math.min(canvas.height * 0.6, canvas.height);
+                width = height / aspectRatio;
+            }
+
+            width = Math.max(width, 40);
+            height = Math.max(height, 40);
+
+            if (width > canvas.width) {
+                width = canvas.width;
+                height = width * aspectRatio;
+            }
+
+            if (height > canvas.height) {
+                height = canvas.height;
+                width = height / aspectRatio;
+            }
+
+            selectionBox = {
+                x: (canvas.width - width) / 2,
+                y: (canvas.height - height) / 2,
+                width,
+                height
+            };
         }
 
         function drawSelectionBox() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
-            ctx.strokeStyle = 'red';
+            ctx.save();
+            ctx.strokeStyle = '#ff7a59';
             ctx.lineWidth = 2;
+            ctx.setLineDash([6, 6]);
             ctx.strokeRect(selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height);
+            ctx.restore();
+            statusDimensions.textContent = `選択範囲: ${Math.round(selectionBox.width)} × ${Math.round(selectionBox.height)}`;
         }
 
-        let dragging = false;
-        let offsetX, offsetY;
-        let resizingEdge = null;
+        function startInteraction(event) {
+            const { x: mouseX, y: mouseY } = getPointerPosition(event);
+            const edgeSize = EDGE_HANDLE_SIZE;
 
-        function startDragging(e) {
-            const mouseX = e.offsetX;
-            const mouseY = e.offsetY;
-
-            // 判定: ボックスの角をドラッグしてサイズ変更するかどうか
-            const edgeSize = 10;
             if (mouseX >= selectionBox.x + selectionBox.width - edgeSize &&
                 mouseX <= selectionBox.x + selectionBox.width &&
                 mouseY >= selectionBox.y + selectionBox.height - edgeSize &&
                 mouseY <= selectionBox.y + selectionBox.height) {
                 resizing = true;
-                resizingEdge = 'bottom-right';
+                dragging = false;
+                canvas.style.cursor = 'nwse-resize';
             } else if (
                 mouseX >= selectionBox.x && mouseX <= selectionBox.x + selectionBox.width &&
                 mouseY >= selectionBox.y && mouseY <= selectionBox.y + selectionBox.height
             ) {
                 dragging = true;
-                offsetX = mouseX - selectionBox.x;
-                offsetY = mouseY - selectionBox.y;
+                resizing = false;
+                dragOffsetX = mouseX - selectionBox.x;
+                dragOffsetY = mouseY - selectionBox.y;
+                canvas.style.cursor = 'move';
             }
         }
 
-        function dragOrResize(e) {
-            const mouseX = e.offsetX;
-            const mouseY = e.offsetY;
+        function dragOrResize(event) {
+            const { x: mouseX, y: mouseY } = getPointerPosition(event);
+            const aspectRatio = getAspectRatio();
+            const edgeSize = EDGE_HANDLE_SIZE;
+            const nearCorner = mouseX >= selectionBox.x + selectionBox.width - edgeSize &&
+                mouseX <= selectionBox.x + selectionBox.width &&
+                mouseY >= selectionBox.y + selectionBox.height - edgeSize &&
+                mouseY <= selectionBox.y + selectionBox.height;
+            const insideSelection = mouseX >= selectionBox.x &&
+                mouseX <= selectionBox.x + selectionBox.width &&
+                mouseY >= selectionBox.y &&
+                mouseY <= selectionBox.y + selectionBox.height;
+
+            if (!dragging && !resizing) {
+                if (nearCorner) {
+                    canvas.style.cursor = 'nwse-resize';
+                } else if (insideSelection) {
+                    canvas.style.cursor = 'move';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+                return;
+            }
 
             if (dragging) {
-                selectionBox.x = mouseX - offsetX;
-                selectionBox.y = mouseY - offsetY;
-                drawSelectionBox();
-            } else if (resizing && resizingEdge === 'bottom-right') {
-                const newWidth = mouseX - selectionBox.x;
-                const newHeight = (newWidth * 94) / 74; // アスペクト比を保つ
-                if (newWidth >= 74 && newHeight >= 94) { // 最小サイズ制限
+                canvas.style.cursor = 'move';
+                let nextX = mouseX - dragOffsetX;
+                let nextY = mouseY - dragOffsetY;
+
+                nextX = Math.min(Math.max(nextX, 0), canvas.width - selectionBox.width);
+                nextY = Math.min(Math.max(nextY, 0), canvas.height - selectionBox.height);
+
+                selectionBox.x = nextX;
+                selectionBox.y = nextY;
+            } else if (resizing) {
+                canvas.style.cursor = 'nwse-resize';
+                let newWidth = Math.max(mouseX - selectionBox.x, 20);
+                let newHeight = newWidth * aspectRatio;
+
+                if (selectionBox.x + newWidth > canvas.width) {
+                    newWidth = canvas.width - selectionBox.x;
+                    newHeight = newWidth * aspectRatio;
+                }
+                if (selectionBox.y + newHeight > canvas.height) {
+                    newHeight = canvas.height - selectionBox.y;
+                    newWidth = newHeight / aspectRatio;
+                }
+
+                if (newWidth >= 20 && newHeight >= 20) {
                     selectionBox.width = newWidth;
                     selectionBox.height = newHeight;
-                    drawSelectionBox();
                 }
             }
+
+            drawSelectionBox();
         }
 
-        function stopDragging() {
+        function stopInteraction() {
             dragging = false;
             resizing = false;
+            canvas.style.cursor = 'default';
         }
 
-        // ダウンロードボタンで選択範囲を縮小し、保存する
         function downloadCroppedImage(format) {
+            if (!img.width) return;
+
+            const { width: outputWidth, height: outputHeight } = getTargetDimensions();
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = selectionBox.width;
-            tempCanvas.height = selectionBox.height;
+            tempCanvas.width = Math.round(selectionBox.width);
+            tempCanvas.height = Math.round(selectionBox.height);
             const tempCtx = tempCanvas.getContext('2d');
-            tempCtx.drawImage(canvas, selectionBox.x, selectionBox.y, selectionBox.width, selectionBox.height, 0, 0, selectionBox.width, selectionBox.height);
+
+            tempCtx.drawImage(
+                img,
+                selectionBox.x,
+                selectionBox.y,
+                selectionBox.width,
+                selectionBox.height,
+                0,
+                0,
+                tempCanvas.width,
+                tempCanvas.height
+            );
 
             const pica = window.pica();
             const outputCanvas = document.createElement('canvas');
-            outputCanvas.width = 74;
-            outputCanvas.height = 94;
+            outputCanvas.width = outputWidth;
+            outputCanvas.height = outputHeight;
 
             pica.resize(tempCanvas, outputCanvas)
                 .then(() => {
@@ -216,8 +500,91 @@
                         link.href = URL.createObjectURL(blob);
                         link.click();
                     }, `image/${format}`);
+                })
+                .catch((error) => {
+                    console.error('画像のリサイズに失敗しました:', error);
                 });
         }
+
+        // ファイル選択
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                loadImageFromFile(file);
+            }
+        });
+
+        // ドラッグ＆ドロップ
+        function handleDragOver(event) {
+            event.preventDefault();
+            canvasCard.classList.add('dragover');
+            canvasContainer.classList.add('dragover');
+        }
+
+        function handleDragLeave(event) {
+            event.preventDefault();
+            const related = event.relatedTarget;
+            if (related && canvasCard.contains(related)) {
+                return;
+            }
+            canvasCard.classList.remove('dragover');
+            canvasContainer.classList.remove('dragover');
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            canvasCard.classList.remove('dragover');
+            canvasContainer.classList.remove('dragover');
+            const file = event.dataTransfer?.files?.[0];
+            if (file) {
+                loadImageFromFile(file);
+            }
+        }
+
+        [canvasCard, canvasContainer].forEach((target) => {
+            target.addEventListener('dragover', handleDragOver);
+            target.addEventListener('dragleave', handleDragLeave);
+            target.addEventListener('drop', handleDrop);
+        });
+
+        // クリップボードからの貼り付けに対応
+        document.addEventListener('paste', (event) => {
+            const items = event.clipboardData?.items || [];
+            for (let i = 0; i < items.length; i += 1) {
+                if (items[i].type.includes('image')) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                        loadImageFromBlob(blob);
+                    }
+                }
+            }
+        });
+
+        function loadImageFromFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function loadImageFromBlob(blob) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(blob);
+        }
+
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            initializeInteractions();
+            resizeSelectionBoxToAspect();
+            drawSelectionBox();
+            enableInteractiveElements();
+        };
     </script>
 </body>
 </html>
