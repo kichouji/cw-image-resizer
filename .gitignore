@@ -1,0 +1,6 @@
+node_modules/
+
+# テスト用・一時的な画像ファイル
+*.bmp
+*.png
+!images/

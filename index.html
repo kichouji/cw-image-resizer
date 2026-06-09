@@ -499,6 +499,53 @@
             canvas.style.cursor = 'default';
         }
 
+        function canvasToBmpBlob(canvas) {
+            const width = canvas.width;
+            const height = canvas.height;
+            const imageData = canvas.getContext('2d').getImageData(0, 0, width, height);
+            const pixels = imageData.data;
+
+            const rowSize = Math.floor((width * 3 + 3) / 4) * 4;
+            const pixelDataSize = rowSize * height;
+            const fileSize = 54 + pixelDataSize;
+            const buf = new ArrayBuffer(fileSize);
+            const v = new DataView(buf);
+
+            // File header
+            v.setUint8(0, 0x42); v.setUint8(1, 0x4d); // 'BM'
+            v.setUint32(2, fileSize, true);
+            v.setUint32(6, 0, true);
+            v.setUint32(10, 54, true);
+
+            // BITMAPINFOHEADER
+            v.setUint32(14, 40, true);
+            v.setInt32(18, width, true);
+            v.setInt32(22, height, true);
+            v.setUint16(26, 1, true);
+            v.setUint16(28, 24, true);
+            v.setUint32(30, 0, true);
+            v.setUint32(34, pixelDataSize, true);
+            v.setInt32(38, 0, true);
+            v.setInt32(42, 0, true);
+            v.setUint32(46, 0, true);
+            v.setUint32(50, 0, true);
+
+            // Pixel data: bottom-to-top, BGR
+            for (let row = 0; row < height; row++) {
+                const dstRow = height - 1 - row;
+                const rowBase = 54 + dstRow * rowSize;
+                for (let col = 0; col < width; col++) {
+                    const src = (row * width + col) * 4;
+                    const dst = rowBase + col * 3;
+                    v.setUint8(dst,     pixels[src + 2]); // B
+                    v.setUint8(dst + 1, pixels[src + 1]); // G
+                    v.setUint8(dst + 2, pixels[src]);     // R
+                }
+            }
+
+            return new Blob([buf], { type: 'image/bmp' });
+        }
+
         function downloadCroppedImage(format) {
             if (!img.width) return;
 
@@ -529,10 +576,18 @@
                 .then(() => {
                     const link = document.createElement('a');
                     link.download = `resized-image.${format}`;
-                    outputCanvas.toBlob((blob) => {
+                    const blob = format === 'bmp'
+                        ? canvasToBmpBlob(outputCanvas)
+                        : null;
+                    if (blob) {
                         link.href = URL.createObjectURL(blob);
                         link.click();
-                    }, `image/${format}`);
+                    } else {
+                        outputCanvas.toBlob((pngBlob) => {
+                            link.href = URL.createObjectURL(pngBlob);
+                            link.click();
+                        }, `image/${format}`);
+                    }
                 })
                 .catch((error) => {
                     console.error('画像のリサイズに失敗しました:', error);
