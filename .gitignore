@@ -4,3 +4,7 @@ node_modules/
 *.bmp
 *.png
 !images/
+
+# 仕様書・メモ
+*.md
+!README.md
